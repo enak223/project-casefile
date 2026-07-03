@@ -83,8 +83,8 @@ Project Casefile is an end-to-end Security Orchestration, Automation, and Respon
 
 | Phase | Scope | Status |
 |---|---|---|
-| **v0.1** | DFIR-IRIS deployment, API exploration, manual case flow | 🔄 In progress |
-| **v0.2** | Wazuh → n8n → IRIS ingestion with dedupe & severity mapping | ⬜ Planned |
+| **v0.1** | DFIR-IRIS deployment, API exploration, manual case flow | ✅ Complete |
+| **v0.2** | Wazuh → n8n → IRIS ingestion with dedupe & severity mapping | 🔄 In progress |
 | **v0.3** | Claude L1 triage layer (verdicts, IOCs, analyst notes) | ⬜ Planned |
 | **v0.4** | Human-in-the-loop Active Response (firewall-drop, account disable) | ⬜ Planned |
 | **v0.5** | Atomic Red Team validation campaign + metrics + case study | ⬜ Planned |

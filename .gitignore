@@ -1,0 +1,14 @@
+﻿# Secrets — never commit
+.env
+.env.*
+*.key
+*credentials*
+*secret*
+
+# IRIS
+iris/certificates/
+iris/.env
+
+# OS junk
+.DS_Store
+Thumbs.db

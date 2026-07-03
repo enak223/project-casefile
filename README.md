@@ -28,7 +28,7 @@ Project Casefile is an end-to-end Security Orchestration, Automation, and Respon
 ┌──────────────┐      ┌───────────────┐      ┌───────────────┐      ┌──────────────┐
 │  Endpoints   │────▶│Wazuh Manager  │───▶  │  n8n Webhook  │────▶│ Claude Triage│
 │ (agents)     │      │ rule.level ≥7 │      │ dedupe/parse  │      │ verdict+IOCs │
-└──────────────┘      └───────_───────┘      └───────────────┘      └──────┬───────┘
+└──────────────┘      └───────────────┘      └───────────────┘      └──────┬───────┘
                                                                            │
                                 ┌──────────────────────────────────────────▼───────┐
                                 │              DFIR-IRIS Case                      │

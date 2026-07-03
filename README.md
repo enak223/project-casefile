@@ -242,6 +242,6 @@ Related projects: [Tripwire](https://github.com/enak223/project-tripwire) • [G
 
 ---
 
-## 🚗 Quote
+ ## 🗃️ Quote
 
 > *"Alerts tell you something happened. Cases tell you what you did about it."*

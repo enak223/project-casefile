@@ -1,0 +1,100 @@
+{
+  "name": "wazuh-to-iris",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "wazuh-casefile",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -336,
+        -160
+      ],
+      "id": "c284a9ba-3510-4b58-9306-82cbd3879ced",
+      "name": "Webhook",
+      "webhookId": "4d31cb28-5c50-48f6-8f52-cd38c4fb01ed"
+    },
+    {
+      "parameters": {
+        "jsCode": "const a = $json.body;\nconst lvl = a.rule?.level || 0;\n\n// Wazuh level → IRIS severity_id (2=Unspec,3=Info,4=Low,5=High,6=Critical)\nlet sev = 2;\nif (lvl >= 13) sev = 6;\nelse if (lvl >= 10) sev = 5;\nelse if (lvl >= 7) sev = 4;\nelse if (lvl >= 5) sev = 3;\n\nreturn [{\n  json: {\n    rule: {\n      id: a.rule?.id,\n      level: lvl,\n      description: a.rule?.description,\n      mitre: a.rule?.mitre?.id || [],\n      groups: a.rule?.groups || []\n    },\n    agent: a.agent || {},\n    timestamp: a.timestamp,\n    data: a.data || {},\n    full_log: a.full_log || \"\",\n    iris_severity_id: sev\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -128,
+        -160
+      ],
+      "id": "095c14b4-18a5-4292-9bdc-7b6973feb63f",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://192.168.248.20:8443/alerts/add",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "YourAPIGoesHere"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"alert_title\": \"{{ $json.rule.description }} on {{ $json.agent.name }}\",\n  \"alert_description\": \"Rule {{ $json.rule.id }} (level {{ $json.rule.level }}). Source IP: {{ $json.data.srcip }}\",\n  \"alert_source\": \"wazuh\",\n  \"alert_severity_id\": {{ $json.iris_severity_id }},\n  \"alert_status_id\": 2,\n  \"alert_customer_id\": 1\n}",
+        "options": {
+          "allowUnauthorizedCerts": true
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        80,
+        -160
+      ],
+      "id": "dba92565-381b-483d-bc00-58cb81bea28c",
+      "name": "HTTP Request"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "fa69d118-cd86-468b-95a5-9ac329a081c9",
+  "meta": {
+    "instanceId": "2a2c072b2544679c21e34728aea326ae943580ea095f9845a1269124b81e2ae7"
+  },
+  "nodeGroups": [],
+  "id": "62KwrxZoVXlogcTR",
+  "tags": []
+}

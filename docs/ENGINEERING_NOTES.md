@@ -107,3 +107,60 @@ This collapsed ~20 alerts per attack down to one meaningful High-severity alert.
 - **IRIS container runs on UTC.** Alert timestamps show ~4–5h ahead of local (Florida). Cosmetic; note it when reading timelines.
 - **OneDrive + git.** The repo lives under OneDrive. Two gotchas: Files-On-Demand can virtualize files (pin with "Always keep on this device"), and Notepad silently appends `.txt` (a file shown as `x.json` may really be `x.json.txt`). Check "Type of file" in Properties.
 - **Two Python interpreters, two `requests`.** See finding #2 — never assume the framework Python's packages are available to integration scripts.
+
+---
+
+## v0.3 — Claude L1 Triage Layer
+
+The goal of v0.3: insert Claude between n8n and IRIS so every alert arrives pre-triaged with a verdict, MITRE mapping, extracted IOCs, and written analyst notes. The AI logic was the easy part. Getting n8n's HTTP Request node to send correctly-typed JSON to two different strict APIs (Anthropic, then IRIS) was the entire fight.
+
+### 5. n8n HTTP Request node mangles expression-built JSON bodies (the core v0.3 bug)
+
+**Symptom:** A long cascade of errors when POSTing an expression-built body, each one shifting as we changed modes:
+- `Unexpected token '=', "={"model"...` — expression sent as literal text
+- `=[object Object]` — object reference not evaluated
+- `The request body must be a JSON object, got str.` (Anthropic) — pre-stringified body sent as a quoted string
+- `Input is a zero-length, empty document` — body dropped entirely
+- `'str' object has no attribute 'pop'` (IRIS) — same string-not-object problem downstream
+
+**Root cause:** n8n's HTTP Request node (v4.4, n8n 2.23.2) is genuinely inconsistent about how it serializes a body built from an expression. Passing `JSON.stringify(obj)` makes it send a **string**; passing `$json.obj` in the wrong field mode sends `[object Object]` or literal text; Raw mode sends the string verbatim (which strict APIs reject because they want an object).
+
+**The winning pattern (confirmed against n8n docs):**
+- Build the body as a **real object** in a Code node (where JS quoting just works). Return it as an object, not a stringified string.
+- In the HTTP node: **Body Content Type = JSON**, **Specify Body = Using JSON**, field in **Expression mode**, referencing the object directly: `={{ $json.irisBody }}`.
+- JSON mode + object reference is the only combination that preserves types and structure end-to-end.
+
+### 6. "Using Fields Below" always sends values as strings — breaks integer fields
+
+**Symptom:** With body set to "Using Fields Below," IRIS rejected `alert_severity_id` with `Not a valid integer.` even though the value was `5`.
+
+**Root cause:** Per n8n's own docs: *"Using Fields Below always imports any parameter values as strings."* It sent `"5"` (string); IRIS's schema requires an integer. There is no per-field type toggle in this mode.
+
+**Fix:** Abandon "Using Fields Below" for any body containing numbers or booleans. Use **Using JSON** with an object expression (finding #5) — JSON mode preserves the number type because the source object's `iris_severity_id` is a genuine JS number.
+
+### 7. Anthropic model quirks in the n8n node
+
+- The **"Anthropic Chat Model"** node is a sub-node for AI Agents — it has no message field and can't be wired inline. The correct node is **Anthropic → Message a Model** (a Text action).
+- **`temperature` is deprecated** for current Sonnet models — passing it returns a 400. Remove the temperature option entirely.
+- The node's response text lands at `content[0].text` as a JSON string; parse it defensively (a parse-failure fallback routes to `needs_review` so a malformed AI response never silently drops an alert).
+
+### Severity mapping (correction from v0.2)
+
+IRIS alert severity IDs, confirmed empirically: **2=Unspecified, 3=Informational, 4=Low, 5=High, 6=Critical** (Medium=1, out of order). Wazuh level → IRIS severity used in the Code node:
+```
+lvl >= 13 -> 6 (Critical) ; >= 10 -> 5 (High) ; >= 7 -> 4 (Low) ; >= 5 -> 3 (Info) ; else 2
+```
+
+### 8. Snapshot delta filled the host disk and corrupted the VM (infra incident)
+
+**Symptom:** Mid-session, n8n went unreachable (`ERR_CONNECTION_TIMED_OUT`), then VMware threw *"The operation on file ubuntuai-cl1-000001.vmdk failed."*
+
+**Root cause:** The `ubuntuai` VM was running on a snapshot delta (`-000001.vmdk`) on a nearly-full drive (E: had ~220 KB free). The delta grew until the disk filled; a write failed mid-flight and left the vmdk in a corrupt state.
+
+**Recovery (order matters):**
+1. **Cancel** the VMware dialog to power off cleanly — never **Continue** (forwarding a disk error to the running guest risks filesystem corruption).
+2. Free space safely: delete leftover `.vmem` (saved-RAM) files of unused clones. **Never** hand-delete `.vmdk` files — that destroys the VM.
+3. Repair the delta: `vmware-vdiskmanager.exe -R "path\to\-000001.vmdk"`.
+4. Consolidate: Snapshot Manager → delete the snapshot (this *merges* the delta into the base, preserving current state and reclaiming space).
+
+**Lesson:** Don't run homelab VMs on a near-full drive, and don't let snapshots live for weeks — the delta grows unbounded. All work was recovered; n8n persists workflows to its own DB, so nothing was lost.

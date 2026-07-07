@@ -10,25 +10,25 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        -336,
-        -160
+        -800,
+        -432
       ],
       "id": "c284a9ba-3510-4b58-9306-82cbd3879ced",
-      "name": "Webhook",
+      "name": "Wazuh Alert Webhook",
       "webhookId": "4d31cb28-5c50-48f6-8f52-cd38c4fb01ed"
     },
     {
       "parameters": {
-        "jsCode": "const a = $json.body;\nconst lvl = a.rule?.level || 0;\n\n// Wazuh level → IRIS severity_id (2=Unspec,3=Info,4=Low,5=High,6=Critical)\nlet sev = 2;\nif (lvl >= 13) sev = 6;\nelse if (lvl >= 10) sev = 5;\nelse if (lvl >= 7) sev = 4;\nelse if (lvl >= 5) sev = 3;\n\nreturn [{\n  json: {\n    rule: {\n      id: a.rule?.id,\n      level: lvl,\n      description: a.rule?.description,\n      mitre: a.rule?.mitre?.id || [],\n      groups: a.rule?.groups || []\n    },\n    agent: a.agent || {},\n    timestamp: a.timestamp,\n    data: a.data || {},\n    full_log: a.full_log || \"\",\n    iris_severity_id: sev\n  }\n}];"
+        "jsCode": "const a = $json.body;\nconst lvl = a.rule?.level || 0;\n\n// Wazuh level → IRIS severity_id (2=Unspec,3=Info,4=Low,5=High,6=Critical)\nlet sev = 2;\nif (lvl >= 13) sev = 6;\nelse if (lvl >= 10) sev = 5;\nelse if (lvl >= 7) sev = 4;\nelse if (lvl >= 5) sev = 3;\n\nconst normalized = {\n  rule: {\n    id: a.rule?.id,\n    level: lvl,\n    description: a.rule?.description,\n    mitre: a.rule?.mitre?.id || [],\n    groups: a.rule?.groups || []\n  },\n  agent: a.agent || {},\n  timestamp: a.timestamp,\n  data: a.data || {},\n  full_log: a.full_log || \"\",\n  iris_severity_id: sev\n};\n\nconst claudeBody = {\n  model: \"claude-sonnet-4-6\",\n  max_tokens: 1500,\n  temperature: 0,\n  system: \"You are an L1 SOC analyst triaging a Wazuh SIEM alert from an isolated homelab. Determine a verdict (true_positive, benign, or needs_review), map to MITRE ATT&CK IDs, extract every IOC present in the alert, write concise analyst notes (3-6 sentences), and recommend one action. Respond with ONLY a valid JSON object, no prose or markdown fences. Only reference IOCs literally present; never invent values. If evidence is insufficient use needs_review. recommended_action must be one of: none, monitor, block_ip, disable_account, isolate_host, escalate_to_analyst (advisory only; a human approves all actions). Schema: {verdict, severity, confidence, mitre, iocs, analysis, recommended_action, case_title}.\",\n  messages: [ { role: \"user\", content: JSON.stringify(normalized) } ]\n};\n\nreturn [{ json: { normalized, claudeBodyString: JSON.stringify(claudeBody) } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -128,
-        -160
+        -480,
+        -432
       ],
       "id": "095c14b4-18a5-4292-9bdc-7b6973feb63f",
-      "name": "Code in JavaScript"
+      "name": "Normalize & Map Severity"
     },
     {
       "parameters": {
@@ -39,13 +39,18 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "YourAPIGoesHere"
+              "value": "pMbzkUBHmseX8jzZ0tkhvFXc1sYGjwYShhekKQiRXWcVh7T4_bVTkKY2-Gum6BJPVxiPLjEfQ8v8EOPC8updWQ"
             }
           ]
         },
         "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"alert_title\": \"{{ $json.rule.description }} on {{ $json.agent.name }}\",\n  \"alert_description\": \"Rule {{ $json.rule.id }} (level {{ $json.rule.level }}). Source IP: {{ $json.data.srcip }}\",\n  \"alert_source\": \"wazuh\",\n  \"alert_severity_id\": {{ $json.iris_severity_id }},\n  \"alert_status_id\": 2,\n  \"alert_customer_id\": 1\n}",
+        "specifyBody": "=json",
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "jsonBody": "={{ $json.irisBody }}",
         "options": {
           "allowUnauthorizedCerts": true
         }
@@ -53,31 +58,106 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        80,
-        -160
+        288,
+        -432
       ],
       "id": "dba92565-381b-483d-bc00-58cb81bea28c",
-      "name": "HTTP Request"
+      "name": "Create IRIS Alert"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "claude-sonnet-5",
+          "mode": "list",
+          "cachedResultName": "claude-sonnet-5"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=={{ JSON.stringify($json.normalized) }}"
+            }
+          ]
+        },
+        "options": {
+          "system": "You are an L1 SOC analyst triaging a Wazuh SIEM alert from an isolated homelab. Determine a verdict (true_positive, benign, or needs_review), map to MITRE ATT&CK IDs, extract every IOC present in the alert, write concise analyst notes (3-6 sentences), and recommend one action. Respond with ONLY a valid JSON object, no prose or markdown fences. Only reference IOCs literally present; never invent values. If evidence is insufficient use needs_review. recommended_action must be one of: none, monitor, block_ip, disable_account, isolate_host, escalate_to_analyst (advisory only; a human approves all actions). Schema: {verdict, severity, confidence, mitre, iocs, analysis, recommended_action, case_title}.",
+          "maxTokens": 1500
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        -256,
+        -432
+      ],
+      "id": "059a0ec3-d6ca-4b9e-aeec-e3c20b7f790a",
+      "name": "Message a model",
+      "credentials": {
+        "anthropicApi": {
+          "id": "eA1PCyJIYtawwyQ4",
+          "name": "Anthropic API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Claude's triage output (JSON string in content[0].text)\nlet triage = {};\ntry {\n  const raw = $json.content?.[0]?.text || \"{}\";\n  triage = JSON.parse(raw.replace(/```json|```/g, \"\").trim());\n} catch (e) {\n  triage = { verdict: \"needs_review\", severity: \"medium\", confidence: 0,\n             mitre: [], iocs: [], analysis: \"TRIAGE PARSE FAILURE: \" + ($json.content?.[0]?.text || \"\").slice(0,300),\n             recommended_action: \"escalate_to_analyst\", case_title: \"Unparseable triage output\" };\n}\n\n// Pull the normalized alert from the earlier node\nconst n = $('Normalize & Map Severity').item.json.normalized;\n\n// Build IRIS alert body\nconst irisBody = {\n  alert_title: triage.case_title || (n.rule.description + \" on \" + (n.agent.name || \"unknown\")),\n  alert_description: triage.analysis || \"No analysis provided\",\n  alert_source: \"wazuh-casefile\",\n  alert_severity_id: n.iris_severity_id,\n  alert_status_id: 2,\n  alert_customer_id: 1,\n  alert_note: \"Verdict: \" + triage.verdict + \" | Confidence: \" + triage.confidence +\n              \" | MITRE: \" + (triage.mitre || []).join(\", \") +\n              \" | Recommended: \" + triage.recommended_action,\n  alert_tags: (triage.mitre || []).join(\",\")\n};\n\nreturn [{ json: { triage, irisBody, iris_severity_id: n.iris_severity_id } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        96,
+        -432
+      ],
+      "id": "e6175705-fece-41cd-8e4f-4e71b6af03e4",
+      "name": "Build IRIS Payload"
     }
   ],
   "pinData": {},
   "connections": {
-    "Webhook": {
+    "Wazuh Alert Webhook": {
       "main": [
         [
           {
-            "node": "Code in JavaScript",
+            "node": "Normalize & Map Severity",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Code in JavaScript": {
+    "Normalize & Map Severity": {
       "main": [
         [
           {
-            "node": "HTTP Request",
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create IRIS Alert": {
+      "main": [
+        []
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Build IRIS Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build IRIS Payload": {
+      "main": [
+        [
+          {
+            "node": "Create IRIS Alert",
             "type": "main",
             "index": 0
           }
@@ -90,8 +170,9 @@
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "fa69d118-cd86-468b-95a5-9ac329a081c9",
+  "versionId": "0db2bf56-2f7a-4330-a058-a65190264da7",
   "meta": {
+    "templateCredsSetupCompleted": true,
     "instanceId": "2a2c072b2544679c21e34728aea326ae943580ea095f9845a1269124b81e2ae7"
   },
   "nodeGroups": [],

@@ -29,19 +29,19 @@ Project Casefile is an end-to-end Security Orchestration, Automation, and Respon
 
 ```
 ┌──────────────┐      ┌───────────────┐      ┌───────────────┐       ┌──────────────┐
-│  Endpoints        │───▶│Wazuh Manager        │───▶  │  n8n Webhook      │────▶│ Claude Triage     │
-│ (agents)          │      │ rule.level ≥7       │      │ dedupe/parse        │       │ verdict+IOCs      │
+│  Endpoints   │────▶│Wazuh Manager  │───▶  │  n8n Webhook  │────▶ │ Claude Triage│
+│ (agents)     │      │ rule.level ≥7 │      │ dedupe/parse  │       │ verdict+IOCs │
 └──────────────┘      └───────────────┘      └───────────────┘       └──────┬───────┘
-                                                                                                  |
-                                ┌───────────────────────────────────────────────▼──┐
-                                │              DFIR-IRIS Case                                         │
-                                │  severity • artifacts • ATT&CK • analyst notes                      │
+                                                                            |
+                                ┌───────────────────────────────────────────▼──────┐
+                                │              DFIR-IRIS Case                      │
+                                │  severity • artifacts • ATT&CK • analyst notes   │
                                 └──────────────────────┬───────────────────────────┘
                                                        │ analyst approves
                                                        ▼
                                 ┌──────────────────────────────────────────────────┐
-                                │   n8n → Wazuh API → Active Response on agent                        │
-                                │        (firewall-drop / disable account)                            │
+                                │   n8n → Wazuh API → Active Response on agent     │
+                                │        (firewall-drop / disable account)         │
                                 └──────────────────────────────────────────────────┘
 ```
 

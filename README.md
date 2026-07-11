@@ -238,10 +238,12 @@ VMware Workstation, dual-interface netplan (NAT + host-only), all services conta
 ## 👤 Author
 
 **Eliezer Fuentes**
+
 Cybersecurity professional — SOC analysis, detection engineering, vulnerability management
+
 GitHub: [@enak223](https://github.com/enak223) • LinkedIn: [eliezerfuentes](https://linkedin.com/in/eliezerfuentes)
 
-Related projects: [Tripwire](https://github.com/enak223/project-tripwire) • [GhostNet](https://github.com/enak223/project-ghostnet) • [NullByte](https://github.com/enak223/project-nullbyte) • [Watchtower](https://github.com/enak223/project-watchtower)
+**Related projects:** [Tripwire](https://github.com/enak223/project-tripwire) • [GhostNet](https://github.com/enak223/project-ghostnet) • [NullByte](https://github.com/enak223/project-nullbyte) • [Watchtower](https://github.com/enak223/project-watchtower)
 
 ---
 

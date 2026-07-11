@@ -2,7 +2,7 @@
 
 **AI-Powered SOAR Pipeline: From Detection to Documented Response**
 
-![Status](https://img.shields.io/badge/status-in%20development-yellow)
+![Status](https://img.shields.io/badge/status-v0.5%20complete-brightgreen)
 ![Wazuh](https://img.shields.io/badge/Wazuh-4.12-blue)
 ![n8n](https://img.shields.io/badge/n8n-orchestration-orange)
 ![DFIR--IRIS](https://img.shields.io/badge/DFIR--IRIS-case%20management-green)
@@ -19,6 +19,9 @@ Project Casefile is an end-to-end Security Orchestration, Automation, and Respon
 **The solution:** A pipeline where every high-severity detection becomes a structured case with AI-generated L1 triage — and where response actions execute only after explicit analyst approval, keeping a human in the loop.
 
 > ⚠️ **Design principle: No automated action ever fires without analyst approval.**
+
+
+> 📊 **Validated (v0.5):** Wazuh alert → fully-documented IRIS case (AI verdict + MITRE mapping + IOCs) in **~7s average** (n=4). L1 triage accuracy: **3/4 agreement** with analyst ground truth across 2 ATT&CK techniques — the one miss was an AI *under-escalation* caught by the human-in-the-loop gate. Full breakdown in [`validation/metrics.md`](validation/metrics.md).
 
 ---
 
@@ -86,8 +89,8 @@ Project Casefile is an end-to-end Security Orchestration, Automation, and Respon
 | **v0.1** | DFIR-IRIS deployment, API exploration, manual case flow | ✅ Complete |
 | **v0.2** | Wazuh → n8n → IRIS ingestion with dedupe & severity mapping | ✅ Complete |
 | **v0.3** | Claude L1 triage layer (verdicts, IOCs, analyst notes) | ✅ Complete |
-| **v0.4** | Human-in-the-loop Active Response (firewall-drop, account disable) | 🔄 In progress |
-| **v0.5** | Atomic Red Team validation campaign + metrics + case study | ⬜ Planned |
+| **v0.4** | Human-in-the-loop Active Response (firewall-drop, account disable) | ✅ Complete |
+| **v0.5** | Validation + metrics: detection-to-case timing, triage accuracy vs. analyst ground truth | ✅ Complete |
 
 ---
 
